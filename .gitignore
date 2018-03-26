@@ -1,0 +1,8 @@
+sub_func_test
+.idea
+.DS_Store
+
+lib/test_pic
+lib/ocr_detect_inner
+
+*.jpg
