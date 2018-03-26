@@ -6,3 +6,5 @@ lib/test_pic
 lib/ocr_detect_inner
 
 *.jpg
+
+dataset
