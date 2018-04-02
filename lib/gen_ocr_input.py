@@ -17,15 +17,19 @@ MAX_CHARS_PER_BOX = 30
 def loadFont(fontDir, size):
     flist = os.listdir(fontDir)
     fonts = []
+    fonts_eng = []
     for f in flist:
         if f.endswith('.ttf') or f.endswith('.TTF'):
-            f = os.path.join(fontDir, f)
-            font = ImageFont.truetype(f, size)
+            ff = os.path.join(fontDir, f)
+            font = ImageFont.truetype(ff, size)
             print('load font {} with size {}.'.format(
                 os.path.basename(f), size
             ))
-            fonts.append(font)
-    return fonts
+            if (f == 'Verdana.ttf') or (f == 'FZXJHJW.ttf'):
+                fonts_eng.append(font)
+            else:
+                fonts.append(font)
+    return fonts, fonts_eng
 
 def loadVocab(txt, vocab):
     idx = 0
@@ -34,7 +38,7 @@ def loadVocab(txt, vocab):
             line = line.strip()
             ss = line.split('\t')
             idx += 1
-            vocab[ss[0]] = idx
+            vocab[ss[0].decode('utf8')[0]] = idx
     print('Max char idx is: {}'.format(len(vocab)))
 
 def _int64_features(values):
@@ -63,26 +67,42 @@ def generateImageBytes(font, size, ustr):
         return None
     if ratio < 1.0:
         offset = int(offset*ratio)
-    img = fontImg.resize((w, 19), Image.BOX).point(
+    img = fontImg.resize((w, 19), Image.LINEAR).point(
         lambda p: p>200 and 255
     )
+    # cv_img = np.array(img, dtype=np.uint8)
+    # import cv2
+    # cv2.imshow('img', cv_img)
+    # cv2.waitKey(1000)
     image.paste(img, (2, int(1+offset)))
     return image.tobytes()
 
-def generateImages(sizedFonts, sizes, vocab, writer, ustr, nlength):
+def generateImages(sizedFonts, sizes, vocab, writer, ustr, nlength, sizedFonts_eng, gotE):
     sizeidx = np.random.randint(0, len(sizes)-1)
     fonts = sizedFonts[sizeidx]
+    fonts_eng = sizedFonts_eng[sizeidx]
     size = sizes[sizeidx]
     font = np.random.choice(fonts)
+    font_eng = np.random.choice(fonts_eng)
+    if gotE:
+        font = font_eng
     imageBytes = None
+    # try:
+    #     imageBytes = generateImageBytes(font, size, ustr)
+    #     if imageBytes is None:
+    #         return False
+    # except:
+    #     print('Generate exception with font {} & size {}'.format(
+    #         font.getname(), font.size()
+    #     ) + '\t' + ustr)
+    #     print('Generate exception with font {} & size {}')
+    #     return False
     try:
         imageBytes = generateImageBytes(font, size, ustr)
         if imageBytes is None:
             return False
-    except:
-        print('Generate exception with font {} & size {}'.format(
-            font.getname(), font.size()
-        ) + '\t' + ustr)
+    except Exception as e:
+        print(e)
         return False
     label = [len(vocab)+1]*MAX_CHARS_PER_BOX
     valid = False
@@ -107,6 +127,7 @@ def split_line(content):
     n = len(content)
     if n <= MAX_CHARS_PER_BOX:
         yield content
+        return
     nn = (n-1)//MAX_CHARS_PER_BOX+1
     for i in range(nn):
         start = i*MAX_CHARS_PER_BOX
@@ -115,12 +136,23 @@ def split_line(content):
             end = n
         yield content[start:end]
 
+def check_eng(line):
+    eng = u''
+    for c in line:
+        if ord(c) < 128:
+            eng += c
+        if len(eng) > 4:
+            return eng
+        return None
+
 def doGen(fontDir, vocab_txt, outdir, input_prefix, start=0, end=1000):
     sizedFonts = []
+    sizedFonts_eng = []
     sizes = [15, 20, 25, 30, 40, 50]
     for size in sizes:
-        fonts = loadFont(fontDir, size)
+        fonts,fonts_eng = loadFont(fontDir, size)
         sizedFonts.append(fonts)
+        sizedFonts_eng.append(fonts_eng)
     vocab = {}
     loadVocab(vocab_txt, vocab)
     train_cnt = 0
@@ -141,6 +173,7 @@ def doGen(fontDir, vocab_txt, outdir, input_prefix, start=0, end=1000):
     )
     for i in range(start, end):
         input_file = '{}-{:05d}'.format(input_prefix, i)
+        line_cnt = 0
         if not os.path.isfile(input_file):
             continue
         with open(input_file, 'r') as f:
@@ -148,6 +181,9 @@ def doGen(fontDir, vocab_txt, outdir, input_prefix, start=0, end=1000):
                 line = line.strip()
                 if not line:
                     continue
+                line_cnt += 1
+                if line_cnt%10 == 0:
+                    print('line number: {}\t\tfile: {}'.format(line_cnt, input_file))
                 pos = line.find('\t')
                 if pos == -1:
                     continue
@@ -164,17 +200,31 @@ def doGen(fontDir, vocab_txt, outdir, input_prefix, start=0, end=1000):
                     for s in ss:
                         vec = split_line(s)
                         for ustr in vec:
+                            gotE = False
+                            if np.random.random() < 0.2:
+                                eng = check_eng(ustr)
+                                if eng is not None:
+                                    ustr = eng
+                                    gotE = True
                             nc = len(ustr)
-                            if (nc > 10) and nc < MAX_CHARS_PER_BOX:
+                            if (nc > 5 or gotE) and nc <= MAX_CHARS_PER_BOX:
                                 writer = writerTrain
                                 rand_x = np.random.random()
-                                if rand_x < 0.7:
+                                if rand_x < 0.8:
                                     writer = writerTrain
-                                elif rand_x < 0.8:
+                                elif rand_x < 0.81:
                                     writer = writerVal
                                 else:
                                     writer = writerTest
-                                if generateImages(sizedFonts, sizes, vocab, writer, ustr, nc):
+                                if nc <= 1:
+                                    continue
+                                try:
+                                    ustr.encode('gb2312')
+                                except:
+                                    # print(u'错误字符：{}'.format(ustr))
+                                    # print('Error string can not transpose to simply chinese!')
+                                    continue
+                                if generateImages(sizedFonts, sizes, vocab, writer, ustr, nc, sizedFonts_eng, gotE):
                                     if writer == writerTrain:
                                         train_cnt += 1
                                     elif writer == writerVal:
@@ -195,13 +245,46 @@ def doGen(fontDir, vocab_txt, outdir, input_prefix, start=0, end=1000):
 def test_doGen():
     fontDir = '../dataset/useFont'
     vocab_txt = '../dataset/unicode_chars.txt'
-    outdir = '../dataset/tfdata'
+    outdir = '../dataset/tfdata-small'
     input_prefix = '../dataset/resume_doc/part-m'
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
     print('====> begin doGen test: ')
-    doGen(fontDir, vocab_txt, outdir, input_prefix)
+    doGen(fontDir, vocab_txt, outdir, input_prefix, 1, 2)
     print('====> end doGen test.')
+
+def parse_tfrecord_function(example_proto):
+    features = {
+        'label': tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True, default_value=0),
+        'image': tf.FixedLenFeature([], tf.string),
+        'nlabel': tf.FixedLenFeature([], tf.int64, default_value=0)
+    }
+    parsed_feats = tf.parse_single_example(example_proto, features)
+    image = parsed_feats['image']
+    image = tf.decode_raw(image, tf.uint8)
+    image = tf.reshape(image, [21, 480, 3])
+    image = tf.squeeze(tf.image.rgb_to_grayscale(image), axis=2)
+    return image
+
+def test_parse_tfrecord_function():
+    import cv2
+    tfrecord_file = '../dataset/tfdata/val.tfrecord'
+    ds = tf.contrib.data.TFRecordDataset(tfrecord_file, 'GZIP')
+    ds = ds.map(parse_tfrecord_function)
+    iterator = ds.make_one_shot_iterator()
+    input = iterator.get_next()
+    sess = tf.Session()
+    for i in range(5000):
+        o = sess.run(input)
+        img = Image.fromarray(o)
+        cv_img = np.array(img, dtype=np.uint8)
+        cv2.imshow('test', cv_img)
+        cv2.waitKey(2000)
+
+def main():
+    fire.Fire()
 
 if __name__ == '__main__':
     test_doGen()
+    # test_parse_tfrecord_function()
+    # main()

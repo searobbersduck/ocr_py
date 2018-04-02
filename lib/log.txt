@@ -1,0 +1,123 @@
+load font 方正中雅宋简体.TTF with size 15.
+load font 华文中宋.ttf with size 15.
+load font 微软雅黑.ttf with size 15.
+load font 小米兰亭.ttf with size 15.
+load font 方正粗黑宋简体.TTF with size 15.
+load font 经典细标宋简.TTF with size 15.
+load font FZXJHJW.ttf with size 15.
+load font 经典黑体简.TTF with size 15.
+load font 经典圆体简.TTF with size 15.
+load font 经典细等线简.TTF with size 15.
+load font 经典楷体简.TTF with size 15.
+load font 经典粗宋简.TTF with size 15.
+load font 方正粗楷简体.TTF with size 15.
+load font 方正细黑一简体.ttf with size 15.
+load font Verdana.ttf with size 15.
+load font 方正中雅宋简体.TTF with size 20.
+load font 华文中宋.ttf with size 20.
+load font 微软雅黑.ttf with size 20.
+load font 小米兰亭.ttf with size 20.
+load font 方正粗黑宋简体.TTF with size 20.
+load font 经典细标宋简.TTF with size 20.
+load font FZXJHJW.ttf with size 20.
+load font 经典黑体简.TTF with size 20.
+load font 经典圆体简.TTF with size 20.
+load font 经典细等线简.TTF with size 20.
+load font 经典楷体简.TTF with size 20.
+load font 经典粗宋简.TTF with size 20.
+load font 方正粗楷简体.TTF with size 20.
+load font 方正细黑一简体.ttf with size 20.
+load font Verdana.ttf with size 20.
+load font 方正中雅宋简体.TTF with size 25.
+load font 华文中宋.ttf with size 25.
+load font 微软雅黑.ttf with size 25.
+load font 小米兰亭.ttf with size 25.
+load font 方正粗黑宋简体.TTF with size 25.
+load font 经典细标宋简.TTF with size 25.
+load font FZXJHJW.ttf with size 25.
+load font 经典黑体简.TTF with size 25.
+load font 经典圆体简.TTF with size 25.
+load font 经典细等线简.TTF with size 25.
+load font 经典楷体简.TTF with size 25.
+load font 经典粗宋简.TTF with size 25.
+load font 方正粗楷简体.TTF with size 25.
+load font 方正细黑一简体.ttf with size 25.
+load font Verdana.ttf with size 25.
+load font 方正中雅宋简体.TTF with size 30.
+load font 华文中宋.ttf with size 30.
+load font 微软雅黑.ttf with size 30.
+load font 小米兰亭.ttf with size 30.
+load font 方正粗黑宋简体.TTF with size 30.
+load font 经典细标宋简.TTF with size 30.
+load font FZXJHJW.ttf with size 30.
+load font 经典黑体简.TTF with size 30.
+load font 经典圆体简.TTF with size 30.
+load font 经典细等线简.TTF with size 30.
+load font 经典楷体简.TTF with size 30.
+load font 经典粗宋简.TTF with size 30.
+load font 方正粗楷简体.TTF with size 30.
+load font 方正细黑一简体.ttf with size 30.
+load font Verdana.ttf with size 30.
+load font 方正中雅宋简体.TTF with size 40.
+load font 华文中宋.ttf with size 40.
+load font 微软雅黑.ttf with size 40.
+load font 小米兰亭.ttf with size 40.
+load font 方正粗黑宋简体.TTF with size 40.
+load font 经典细标宋简.TTF with size 40.
+load font FZXJHJW.ttf with size 40.
+load font 经典黑体简.TTF with size 40.
+load font 经典圆体简.TTF with size 40.
+load font 经典细等线简.TTF with size 40.
+load font 经典楷体简.TTF with size 40.
+load font 经典粗宋简.TTF with size 40.
+load font 方正粗楷简体.TTF with size 40.
+load font 方正细黑一简体.ttf with size 40.
+load font Verdana.ttf with size 40.
+load font 方正中雅宋简体.TTF with size 50.
+load font 华文中宋.ttf with size 50.
+load font 微软雅黑.ttf with size 50.
+load font 小米兰亭.ttf with size 50.
+load font 方正粗黑宋简体.TTF with size 50.
+load font 经典细标宋简.TTF with size 50.
+load font FZXJHJW.ttf with size 50.
+load font 经典黑体简.TTF with size 50.
+load font 经典圆体简.TTF with size 50.
+load font 经典细等线简.TTF with size 50.
+load font 经典楷体简.TTF with size 50.
+load font 经典粗宋简.TTF with size 50.
+load font 方正粗楷简体.TTF with size 50.
+load font 方正细黑一简体.ttf with size 50.
+load font Verdana.ttf with size 50.
+Max char idx is: 6515
+line number: 10		file: ../dataset/resume_doc/part-m-00000
+
+
+误字符：佳兆业·东戴河项
+错误字符：2011年3月佳兆业集团第一个旅游地产综合体—佳兆业·东戴河
+错误字符：等相关作；2011年10月30日佳兆业·东戴河项目开盘，当天
+错误字符：2012年营销年度推广费用孙堃华执行签约金额为4312万元，
+错误字符：2013年营销年度推广费用孙堃华执行签约金额为5722万元，
+错误字符：中外合营(合资·合作)
+错误字符：太阳公元项目开盘恰逢金融危机，当时定价2.5万元/㎡均价，但
+错误字符：0月太阳公元销售均价涨至5.5万元/㎡
+错误字符：中外合营(合资·合作)
+错误字符：Ø 负责新项目的拓展和项目的一二级开发工作；依据公司发展规划
+错误字符：Ø 主持制定公司的土地储备战略，建立和拓展土地信息获取渠道，
+错误字符：Ø 主持项目谈判，对意向项目进行投资收益测算和可行性分析 ，
+错误字符：Ø 负责全国范围土地一级开发，二级招拍挂和项目投资收购等投资
+错误字符：Ø 2005．2至2010.10主要项目：珠江壹仟栋项目、珠
+错误字符：Ø 2006．2至2007.9主要项目：通州金桥科技产业园区
+错误字符：Ø 外埠项目：江苏海门300亩，福州南站450亩土地与地方城
+line number: 1530               file: ../dataset/resume_doc/part-m-00000
+line number: 1540               file: ../dataset/resume_doc/part-m-00000
+====> create images: 31000      train images: 21385     validatinon images: 3025        test images: 6057
+line number: 1550               file: ../dataset/resume_doc/part
+
+符：2010/6—2010/6：音乐播放器：
+错误字符：2009/8—2010/4： 数据采集系统
+错误字符：供职于企业管理部，负责营销中心信息管理及咨询团队建设
+错误字符：负责区域销售团队、各分支机构信息专员培训工作
+错误字符：担任移动销售系统运营负责人，创新企业营销模式，大幅提升区域
+错误字符：协同IT部门开发微信公众服务号，立足终端需求设计主体框架及
+line number: 6070               file: ../dataset/resume_doc/part-m-00000
+line number: 6080               file: ../dataset/resume_doc/part-m-00000

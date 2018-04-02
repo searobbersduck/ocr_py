@@ -4,7 +4,12 @@ sub_func_test
 
 lib/test_pic
 lib/ocr_detect_inner
+lib/models
 
 *.jpg
 
 dataset
+
+try/out_check_font
+try/out_stat_words
+
