@@ -13,3 +13,12 @@ dataset
 try/out_check_font
 try/out_stat_words
 
+*.pyc
+try/comp_str.txt
+try/comp_str1.txt
+try/models-v1
+try/models-v2-bk1
+try/models
+try/out_ocr_fullfonts_gen
+
+tfdata

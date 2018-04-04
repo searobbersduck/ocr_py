@@ -98,15 +98,12 @@ class FontsGenerator(object):
 
         self._generate_image(vocab_list, font, size, self.num_min, self.num_max)
 
-
-
 def test_FontsGenerator():
     fonts_lib = '../dataset/font1'
     vocab_lib = '../dataset/unicode_chars.txt'
     generator = FontsGenerator(vocab_lib, fonts_lib)
     for i in range(1000):
         generator.generate_images()
-
 
 
 # test 英文字体和中文字体显示英文的差别：
