@@ -140,7 +140,6 @@ class OCRModel(object):
 
     def testloss(self, X, Y):
         X = 255 -X
-        X = tf.cast(X, tf.float32)/255.
         xL = self.length(X)
         o = self.inference(X, xL, True)
         # decoded, _ = tf.nn.ctc_beam_search_decoder(
