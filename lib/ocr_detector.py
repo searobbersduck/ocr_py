@@ -89,6 +89,7 @@ class ocr_detector:
             # plt.imshow(bk_rect_img)
             # plt.show()
             cv2.imwrite('ocr_detect_saver.jpg', bk_rect_img)
+        return bboxes, gray
 
     def filter(self, rect):
         return True, rect

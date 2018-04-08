@@ -22,3 +22,8 @@ try/models
 try/out_ocr_fullfonts_gen
 
 tfdata
+
+*.zip
+
+models
+

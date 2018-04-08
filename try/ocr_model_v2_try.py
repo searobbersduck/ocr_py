@@ -222,7 +222,7 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
 
     best_loss = float('inf')
     best_acc = 0
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=20)
     outdir = './models'
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
@@ -370,13 +370,13 @@ def loadVocab(txt, vocab):
 
 
 def retrain():
-    models_dir = './models'
-    # models_dir = './models-v1'
+    # models_dir = './models'
+    models_dir = './models-v1'
 
-    ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
-    # ds_val = tf.contrib.data.TFRecordDataset('./tfdata/val.tfrecord-0', 'GZIP')
+    # ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
+    ds_val = tf.contrib.data.TFRecordDataset('./tfdata/test.tfrecord', 'GZIP')
     ds_val = ds_val.map(parse_tfrecord_function_with_raw)
-    ds_val = ds_val.batch(1)
+    ds_val = ds_val.batch(10)
     iterator_val = ds_val.make_one_shot_iterator()
     inputs_val = iterator_val.get_next()
 
@@ -384,14 +384,14 @@ def retrain():
 
     vocab = {}
     vocab1 = {}
-    loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
+    # loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
     import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-21000.meta'))
+        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-32000.meta'))
         saver.restore(sess, tf.train.latest_checkpoint(models_dir))
         graph = tf.get_default_graph()
-        # op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
-        op_onlinereference = graph.get_tensor_by_name('onlineInferenceModel_NoMerge:0')
+        op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
+        # op_onlinereference = graph.get_tensor_by_name('onlineInferenceModel_NoMerge:0')
         inp_x = graph.get_tensor_by_name('inp_x:0')
 
         log = []
@@ -426,9 +426,78 @@ def retrain():
                 for i in range(len(o1)):
                     if o1[i] >= REAL_LABEL_NUM:
                         continue
-                    str += vocab1[o1[i]]
+                    str += vocab[o1[i]]
                 print(str)
                 log.append(str)
+            except IOError as e:
+                print(e)
+                break
+        with open('comp_str.txt', 'w') as f:
+            for l in log:
+                f.write(l)
+                f.write('\n')
+        print('hello retrain!')
+
+def retest():
+    batch_size = 512
+    models_dir = './models'
+    # models_dir = './models-v1'
+
+    # ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
+    testset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(12)]
+    ds_val = tf.contrib.data.TFRecordDataset(testset, 'GZIP')
+    ds_val = ds_val.map(parse_tfrecord_function_with_raw)
+    ds_val = ds_val.batch(batch_size)
+    iterator_val = ds_val.make_one_shot_iterator()
+    inputs_val = iterator_val.get_next()
+
+    # model_ocr = OCRModel(6826, 120)
+
+    vocab = {}
+    vocab1 = {}
+    # loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
+    import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
+    with tf.Session() as sess:
+        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-157000.meta'))
+        saver.restore(sess, tf.train.latest_checkpoint(models_dir))
+        graph = tf.get_default_graph()
+        # op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
+        op_onlinereference = graph.get_tensor_by_name('onlineInferenceModel_NoMerge:0')
+        inp_x = graph.get_tensor_by_name('inp_x:0')
+
+        log = []
+        cnt = 0
+        for i in range(1000):
+            try:
+                inputs = sess.run(inputs_val)
+                cnt += inputs[0].shape[0]
+                print('====> tested images cnt is: {}'.format(cnt))
+                image = inputs[3][0]
+                import numpy as np
+                from PIL import Image
+                o = sess.run(op_onlinereference, feed_dict={
+                    inp_x: inputs[0]
+                })
+
+                for b_i in range(o.shape[0]):
+                    o1 = o[b_i]
+                    # o1 = inputs[1][0]
+                    str = ''
+                    for i in range(len(o1)):
+                        if o1[i] == REAL_LABEL_NUM:
+                            continue
+                        str += vocab[o1[i]]
+                    # print(str)
+                    log.append(str)
+                    # o1 = o[0]
+                    o1 = inputs[1][b_i]
+                    str = ''
+                    for i in range(len(o1)):
+                        if o1[i] >= REAL_LABEL_NUM:
+                            continue
+                        str += vocab[o1[i]]
+                    # print(str)
+                    log.append(str)
             except IOError as e:
                 print(e)
                 break
@@ -458,4 +527,5 @@ def test_train_noepochs():
 if __name__ == '__main__':
     # test_train()
     # retrain()
-    test_train_noepochs()
+    retest()
+    # test_train_noepochs()
