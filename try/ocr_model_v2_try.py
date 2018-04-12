@@ -14,7 +14,7 @@ from ocr_fullfonts_gen_try import import_vocab
 
 # REAL_LABEL_NUM = 6516
 # REAL_LABEL_NUM = 6826
-REAL_LABEL_NUM = 7043
+REAL_LABEL_NUM = 7110
 
 TIME_STEPS = 120
 
@@ -228,7 +228,7 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
         os.makedirs(outdir)
     logger = []
     lr_in = lr
-    min_lr = 5e-5
+    min_lr = 1e-3
     with tf.Session() as sess:
         sess.run(init)
         tf.train.write_graph(sess.graph_def, outdir, 'graph.pb', as_text=True)
@@ -374,9 +374,10 @@ def retrain():
     models_dir = './models-v1'
 
     # ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
-    ds_val = tf.contrib.data.TFRecordDataset('./tfdata/test.tfrecord', 'GZIP')
+    # ds_val = tf.contrib.data.TFRecordDataset('./tfdata/test.tfrecord', 'GZIP')
+    ds_val = tf.contrib.data.TFRecordDataset('./out_ocr_detect/test.tfrecord', 'GZIP')
     ds_val = ds_val.map(parse_tfrecord_function_with_raw)
-    ds_val = ds_val.batch(10)
+    ds_val = ds_val.batch(1)
     iterator_val = ds_val.make_one_shot_iterator()
     inputs_val = iterator_val.get_next()
 
@@ -401,34 +402,34 @@ def retrain():
                 image = inputs[3][0]
                 import numpy as np
                 from PIL import Image
-                # import cv2
-                # image = 255 - image
-                # pil_img = Image.fromarray(image)
-                # cv_img = np.array(pil_img, dtype=np.uint8)
-                # cv2.imshow('test', cv_img)
-                # cv2.waitKey(3000)
-                o = sess.run(op_onlinereference, feed_dict={
-                    inp_x: inputs[0]
-                })
-
-                o1 = o[0]
-                # o1 = inputs[1][0]
-                str = ''
-                for i in range(len(o1)):
-                    if o1[i] == REAL_LABEL_NUM:
-                        continue
-                    str += vocab[o1[i]]
-                print(str)
-                log.append(str)
+                import cv2
+                image = 255 - image
+                pil_img = Image.fromarray(image)
+                cv_img = np.array(pil_img, dtype=np.uint8)
+                cv2.imshow('test', cv_img)
+                cv2.waitKey(3000)
+                # o = sess.run(op_onlinereference, feed_dict={
+                #     inp_x: inputs[0]
+                # })
+                #
                 # o1 = o[0]
-                o1 = inputs[1][0]
-                str = ''
-                for i in range(len(o1)):
-                    if o1[i] >= REAL_LABEL_NUM:
-                        continue
-                    str += vocab[o1[i]]
-                print(str)
-                log.append(str)
+                # # o1 = inputs[1][0]
+                # str = ''
+                # for i in range(len(o1)):
+                #     if o1[i] == REAL_LABEL_NUM:
+                #         continue
+                #     str += vocab[o1[i]]
+                # print(str)
+                # log.append(str)
+                # # o1 = o[0]
+                # o1 = inputs[1][0]
+                # str = ''
+                # for i in range(len(o1)):
+                #     if o1[i] >= REAL_LABEL_NUM:
+                #         continue
+                #     str += vocab[o1[i]]
+                # print(str)
+                # log.append(str)
             except IOError as e:
                 print(e)
                 break
@@ -444,7 +445,7 @@ def retest():
     # models_dir = './models-v1'
 
     # ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
-    testset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(12)]
+    testset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(11)]
     ds_val = tf.contrib.data.TFRecordDataset(testset, 'GZIP')
     ds_val = ds_val.map(parse_tfrecord_function_with_raw)
     ds_val = ds_val.batch(batch_size)
@@ -458,7 +459,7 @@ def retest():
     # loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
     import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-157000.meta'))
+        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-12000.meta'))
         saver.restore(sess, tf.train.latest_checkpoint(models_dir))
         graph = tf.get_default_graph()
         # op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
@@ -467,7 +468,8 @@ def retest():
 
         log = []
         cnt = 0
-        for i in range(1000):
+        for cnt_i in range(1000):
+            time_begin = time.time()
             try:
                 inputs = sess.run(inputs_val)
                 cnt += inputs[0].shape[0]
@@ -481,13 +483,14 @@ def retest():
 
                 for b_i in range(o.shape[0]):
                     o1 = o[b_i]
+                    print(o1)
                     # o1 = inputs[1][0]
                     str = ''
                     for i in range(len(o1)):
                         if o1[i] == REAL_LABEL_NUM:
                             continue
                         str += vocab[o1[i]]
-                    # print(str)
+                    print(str)
                     log.append(str)
                     # o1 = o[0]
                     o1 = inputs[1][b_i]
@@ -496,17 +499,96 @@ def retest():
                         if o1[i] >= REAL_LABEL_NUM:
                             continue
                         str += vocab[o1[i]]
-                    # print(str)
+                    print(str)
                     log.append(str)
-            except IOError as e:
+            # except IOError as e:
+            #     print(e)
+            except Exception as e:
                 print(e)
                 break
+            time_end = time.time()
+            print('====> process [{:04d}]\t\t time:{:.4f}'.format(cnt_i, (time_end-time_begin)))
         with open('comp_str.txt', 'w') as f:
             for l in log:
                 f.write(l)
                 f.write('\n')
         print('hello retrain!')
 
+def resume_test():
+    batch_size = 256
+    models_dir = './models'
+    # models_dir = './models-v1'
+
+    # ds_val = tf.contrib.data.TFRecordDataset('../tfdata/val.tfrecord', 'GZIP')
+    testset = './resume/test.tfrecord'
+    ds_val = tf.contrib.data.TFRecordDataset(testset, 'GZIP')
+    ds_val = ds_val.map(parse_tfrecord_function_with_raw)
+    ds_val = ds_val.batch(batch_size)
+    iterator_val = ds_val.make_one_shot_iterator()
+    inputs_val = iterator_val.get_next()
+
+    # model_ocr = OCRModel(6826, 120)
+
+    vocab = {}
+    vocab1 = {}
+    # loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
+    import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
+    with tf.Session() as sess:
+        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-12000.meta'))
+        saver.restore(sess, tf.train.latest_checkpoint(models_dir))
+        graph = tf.get_default_graph()
+        # op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
+        op_onlinereference = graph.get_tensor_by_name('onlineInferenceModel_NoMerge:0')
+        inp_x = graph.get_tensor_by_name('inp_x:0')
+
+        log = []
+        cnt = 0
+        vocab_out = {}
+        cnt_out = 0
+        for cnt_i in range(1000):
+            time_begin = time.time()
+            try:
+                inputs = sess.run(inputs_val)
+                cnt += inputs[0].shape[0]
+                print('====> tested images cnt is: {}'.format(cnt))
+                image = inputs[3][0]
+                import numpy as np
+                from PIL import Image
+                o = sess.run(op_onlinereference, feed_dict={
+                    inp_x: inputs[0]
+                })
+                for b_i in range(o.shape[0]):
+                    o1 = o[b_i]
+                    # o1 = inputs[1][0]
+                    str = ''
+                    for i in range(len(o1)):
+                        if o1[i] == REAL_LABEL_NUM:
+                            continue
+                        str += vocab[o1[i]]
+                    log.append(str)
+                    image = inputs[3][b_i]
+                    pil_img = Image.fromarray(image)
+                    pil_img.save('resume/{}.jpg'.format(cnt_out))
+                    vocab_out[cnt_out] = str
+                    print('key:{}\t\tvalue{}'.format(cnt_out, str))
+                    cnt_out += 1
+            except IOError as e:
+                print(e)
+            except Exception as e:
+                break
+            time_end = time.time()
+            print('====> process [{:04d}]\t\t time:{:.4f}'.format(cnt_i, (time_end-time_begin)))
+        import operator
+        sorted_vocab = sorted(vocab_out.items(), key=operator.itemgetter(0))
+        with open('resume/result.txt', 'w') as f:
+            for key, value in sorted_vocab:
+                f.write('{} :\t{}'.format(key, value))
+                f.write('\n')
+        with open('resume/comp_str.txt', 'w') as f:
+            for l in log:
+                f.write(l)
+                f.write('\n')
+        print('hello retrain!')
 
 def test_train():
     model = OCRModel(numChars=6516, lstmHidden=120)
@@ -517,15 +599,39 @@ def test_train():
 
 def test_train_noepochs():
     trainset = ['./tfdata/train.tfrecord-{}'.format(i) for i in range(12)]
-    valset = ['./tfdata/val.tfrecord-{}'.format(i) for i in range(12)]
+    valset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(1)]
     # trainset = './tfdata/train.tfrecord-0'
     # valset = './tfdata/val.tfrecord-0'
     model = OCRModel(numChars=REAL_LABEL_NUM, lstmHidden=120)
     train(trainset,
           valset,model, 100, 2048, 384, 0.01, 1000000)
 
+def test_dataset_valid():
+    batch_size = 10
+    trainset = ['./tfdata/train.tfrecord-{}'.format(i) for i in range(11)]
+    valset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(11)]
+    ds_val = tf.contrib.data.TFRecordDataset(valset, 'GZIP')
+    ds_val = ds_val.map(parse_tfrecord_function_with_raw)
+    ds_val = ds_val.batch(batch_size)
+    iterator_val = ds_val.make_one_shot_iterator()
+    inputs_val = iterator_val.get_next()
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        for i in range(100):
+            inputs = sess.run(inputs_val)
+            image = inputs[3][0]
+            label = inputs[1][0]
+            import numpy as np
+            from PIL import Image
+            import cv2
+            cv_img = np.array(image, dtype=np.uint8)
+            cv2.imshow('img', cv_img)
+            cv2.waitKey(1000)
+
 if __name__ == '__main__':
     # test_train()
     # retrain()
-    retest()
+    # retest()
     # test_train_noepochs()
+    # resume_test()
+    test_dataset_valid()

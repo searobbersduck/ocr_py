@@ -25,6 +25,8 @@ ustr_try8 = u'○●◎◇◆□■△▲※'
 ustr_try9 = u'→←↑↓〓'
 ustr_try20 = u'ⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ'
 ustr_try21 = u'⒈⒉⒊⒋⒌⒍⒎⒏⒐⒑⒒⒓⒔⒕⒖⒗⒘⒙⒚⒛'
+ustr_try23 = u'-/.,)(:][;_?%*+~&―・\#|><=!①②③@④"`⑤⑥$^⑦{┄}⑴の⑵λ⑧⑶üしⅡ⑷をスす⑸と─まに⑨ンてぷで⑹'
+ustr_try24 = u"'"
 ustr_try30 = u'！＂＃￥％＆＇（）'
 ustr_try31 = u'＊＋，－．／０１２３'
 ustr_try32 = u'４５６７８９：；＜＝'
@@ -37,7 +39,7 @@ ustr_try38 = u'ｐｑｒｓｔｕｖｗｘｙ'
 ustr_try39 = u'ｚ｛｜｝￣'
 ustr_spec3 = ustr_try30 + ustr_try31 + ustr_try32 + ustr_try33 + ustr_try34 + \
     ustr_try35 + ustr_try36 + ustr_try37 + ustr_try38 + ustr_try39
-ustr_spec2 = ustr_try20 + ustr_try21
+ustr_spec2 = ustr_try20 + ustr_try21 + ustr_try23 + ustr_try24
 ustr_spec1 = ustr_spec + ustr_try4 + ustr_try5 + ustr_try6 + ustr_try7 + ustr_try8 + ustr_try9
 
 
@@ -58,7 +60,7 @@ import tensorflow as tf
 import time
 
 WORDS_NUM_MIN = 2
-WORDS_NUM_MAX = 30
+WORDS_NUM_MAX = 20
 
 WORDS_IMAGE_WIDTH = 480
 WORDS_IMAGE_HEIGHT = 21
@@ -66,6 +68,8 @@ WORDS_IMAGE_HEIGHT = 21
 MAX_CHARS_PER_BOX = WORDS_NUM_MAX
 
 outdir = './out_ocr_fullfonts_gen'
+
+FONT_DIR = './useFont'
 
 
 '''
@@ -104,7 +108,7 @@ def check_gb2312_ustr_spec():
             flag = False
             break
     print(flag)
-    fontspath = '../dataset/useFont'
+    fontspath = FONT_DIR
     vocab_fonts = {}
     loadFonts(fontspath, 30, vocab_fonts)
     for name, font in vocab_fonts.iteritems():
@@ -154,6 +158,15 @@ def import_vocab(txt, vocab):
             vocab[int(ss[1])] = ss[0]
         print('the word number in vocab is: {}'.format(len(vocab)))
 
+def import_vocab_wordaskey(txt, vocab):
+    with open(txt, 'r') as f:
+        for line in f.readlines():
+            line = line.strip()
+            ss = line.split('\t')
+            vocab[ss[0].decode('utf8')[0]] = int(ss[1])
+            # vocab[int(ss[1])] = ss[0]
+        print('the word number in vocab is: {}'.format(len(vocab)))
+
 def test_gen_vocab():
     ustr = ustr_all
     vocab = {}
@@ -172,6 +185,7 @@ def test_import_vocab():
 def gen_ustr_list():
     ustr_list = []
     ustr = ustr_gen_all
+    # ustr = ustr_abc
     for c in ustr:
         ustr_list.append(c)
     print('ustr count is {}'.format(len(ustr_list)))
@@ -182,7 +196,7 @@ def gen_ustr_list():
 检查各字体库中，有哪些字是绘制不出来的
 '''
 def check_font_drawable():
-    fontspath = '../dataset/useFont'
+    fontspath = FONT_DIR
     vocab_fonts = {}
     loadFonts(fontspath, 30, vocab_fonts)
     ustr = ustr_all
@@ -210,7 +224,7 @@ def check_font_drawable():
 得到各字体库中不能绘制的字的字典
 '''
 def get_font_notdrawable(fontnotdrawable_dict, vocab_fonts, ustr):
-    # fontspath = '../dataset/useFont'
+    # fontspath = FONT_DIR
     # vocab_fonts = {}
     # loadFonts(fontspath, 30, vocab_fonts)
     # ustr = ustr_all
@@ -262,7 +276,7 @@ def is_words_drawable(uchars, fontname, dict):
         return False
 
 def test_is_words_drawable():
-    fontspath = '../dataset/useFont'
+    fontspath = FONT_DIR
     vocab_fonts = {}
     loadFonts(fontspath, 30, vocab_fonts)
     fontnotdrawable_dict = {}
@@ -301,6 +315,50 @@ def test_gen_words_random():
 
 
 '''
+数据增强
+'''
+class dataAugmentation(object):
+    def __init__(self,noise=True,dilate=True,erode=True):
+        self.noise = noise
+        self.dilate = dilate
+        self.erode = erode
+
+    @classmethod
+    def add_noise(cls,img):
+        for i in range(20): #添加点噪声
+            temp_x = np.random.randint(0,img.shape[0])
+            temp_y = np.random.randint(0,img.shape[1])
+            img[temp_x][temp_y] = 0
+        return img
+
+    @classmethod
+    def add_erode(cls,img):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 2))
+        img = cv2.erode(img,kernel)
+        return img
+
+    @classmethod
+    def add_dilate(cls,img):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 2))
+        img = cv2.dilate(img,kernel)
+        return img
+
+    def do(self,pil_img):
+        cv_img = np.array(pil_img, dtype=np.uint8)
+        rand_x = np.random.random()
+        if rand_x < 0.5:
+            cv_img = self.add_noise(cv_img)
+        rand_x = np.random.random()
+        if rand_x < 0.5:
+            cv_img = self.add_dilate(cv_img)
+        rand_x = np.random.random()
+        if rand_x < 0.5:
+            cv_img = self.add_erode(cv_img)
+        return Image.fromarray(cv_img)
+
+
+
+'''
 利用字符串和字体绘制文字图像
 '''
 def gen_image(font, size, ustr, image_w, image_h):
@@ -311,6 +369,11 @@ def gen_image(font, size, ustr, image_w, image_h):
     fontImg = Image.new('RGB', (w,h), 'white')
     drawObj = ImageDraw.Draw(fontImg)
     drawObj.text([0,0], ustr, font=font, fill=(0,0,0,0))
+
+    if size > 40:
+        aug = dataAugmentation()
+        fontImg = aug.do(fontImg)
+
     s_w = int(w*ratio)
     if s_w < (image_w-2):
         w = s_w
@@ -323,20 +386,24 @@ def gen_image(font, size, ustr, image_w, image_h):
     img = fontImg.resize((w, image_h-2), Image.LINEAR).point(
         lambda p: p>200 and 255
     )
-    image.paste(img, (2, int(1+offset)))
+    x_offset = np.random.randint(-4, 10)
+    y_offset = np.random.randint(-1, 4)
+    image.paste(img, (x_offset, int(y_offset+offset)))
+
     return image
 
 def test_gen_image():
-    fontspath = '../dataset/useFont'
+    fontspath = '../dataset/font-small'
     vocab_fonts = {}
-    loadFonts(fontspath, 30, vocab_fonts)
+    loadFonts(fontspath, 50, vocab_fonts)
     fontnotdrawable_dict = {}
     get_font_notdrawable(fontnotdrawable_dict, vocab_fonts, ustr_all)
     ustr_list = gen_ustr_list()
 
     import cv2
-    for i in range(100):
+    for i in range(10000):
         gen_ustr = gen_words_random(ustr_list, 3, 50)
+        # gen_ustr = u'基于FPGA设计'
         name, font = random.choice(list(vocab_fonts.items()))
         if (name == 'Verdana') or (name == 'FZXJHJW'):
             continue
@@ -478,7 +545,7 @@ def gen_dataset_without_eng(fontsDir, outdir='./tfdata', words_num_min=WORDS_NUM
     print(log)
 
 def test_gen_dataset_without_eng():
-    fontsDir = '../../useFont'
+    fontsDir = FONT_DIR
     gen_dataset_without_eng(fontsDir)
 
 
@@ -486,7 +553,7 @@ def multi_thrd_gen_dataset():
     import time
     import threading
     import multiprocessing
-    fontsDir = '../../useFont'
+    fontsDir = FONT_DIR
     processes = []
     for i in range(12):
         proc =  multiprocessing.Process(target=gen_dataset_without_eng, args=(fontsDir, './tfdata', WORDS_NUM_MIN, WORDS_NUM_MAX, i))
@@ -495,6 +562,197 @@ def multi_thrd_gen_dataset():
         i.start()
     for i in processes:
         i.join()
+
+def test_read_resume_vocab():
+    resume_txt = './out_resume_vocab/part-m-00000-gb'
+    with open(resume_txt, 'r') as f:
+        for line in f.readlines():
+            line = line.strip()
+            line = line.decode('utf8')
+            print(line)
+
+
+'''
+1. 随机x offset, y offset
+2. 随机腐蚀膨胀(随机kernel)
+3. 随机扰动
+4. 
+'''
+def gen_image_random(font, size, ustr, image_w, image_h):
+    return gen_image(font, size, ustr, image_w, image_h)
+
+def check_eng(line):
+    eng = u''
+    for c in line:
+        if ord(c) < 128:
+            eng += c
+        if len(eng) > 4:
+            return eng
+        return None
+
+def gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, outdir='./tfdata', start=0, end=1000, use_aug=True, pid=0):
+    time_begin = time.time()
+    vocab = {}
+
+    import_vocab_wordaskey(vocab_txt, vocab)
+    vocab_len = len(vocab)
+    # gen fonts vocab
+    sizes = [30, 35, 40, 50, 60]
+    fonts = []
+    for size in sizes:
+        sized_vocab_fonts = {}
+        loadFonts(fontsDir, size, sized_vocab_fonts)
+        fonts.append(sized_vocab_fonts)
+    # gen check_font vocab
+    fontnotdrawable_dict = {}
+    get_font_notdrawable(fontnotdrawable_dict, fonts[0], ustr_all)
+    # gen tf writer
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
+    tfopts = tf.python_io.TFRecordOptions(
+        tf.python_io.TFRecordCompressionType.GZIP
+    )
+    writerTrain = tf.python_io.TFRecordWriter(
+        '{}/train.tfrecord-{}'.format(outdir, pid), tfopts
+    )
+    writerTest = tf.python_io.TFRecordWriter(
+        '{}/test.tfrecord-{}'.format(outdir, pid), tfopts
+    )
+    writerVal = tf.python_io.TFRecordWriter(
+        '{}/val.tfrecord-{}'.format(outdir, pid), tfopts
+    )
+    train_cnt = 0
+    val_cnt = 0
+    test_cnt = 0
+    total_cnt = 0
+    for i in range(start, end):
+        line_cnt = 0
+        input_file = '{}-{:05d}-all'.format(input_prefix, i)
+        if not os.path.isfile(input_file):
+            continue
+        with open(input_file, 'r') as f:
+            for line in f.readlines():
+                line_cnt += 1
+                if line_cnt % 2000 == 0:
+                    print('====> thread [{}] \t line number: {}\t\tfile: {}'.format(pid, line_cnt, input_file))
+                line = line.strip()
+                ustr = line.decode('utf8')
+                ustr = ustr[:min(len(ustr), WORDS_NUM_MAX)]
+                if len(ustr) < 2:
+                    continue
+                sizeidx = np.random.randint(0, len(sizes))
+                size = sizes[sizeidx]
+                sized_vocab_fonts = fonts[sizeidx]
+                name, font = random.choice(list(sized_vocab_fonts.items()))
+                if (name == 'Verdana'):
+                    continue
+                flag = is_words_drawable(ustr, name, fontnotdrawable_dict)
+                if not flag:
+                    continue
+                try:
+                    pil_img = gen_image_random(font, size, ustr, WORDS_IMAGE_WIDTH, WORDS_IMAGE_HEIGHT)
+                    # cv_img = np.array(pil_img, dtype=np.uint8)
+                    # cv2.imshow('img', cv_img)
+                    # cv2.waitKey(1000)
+                    if pil_img is None:
+                        continue
+                except:
+                    continue
+                # gen labels
+                label = [vocab_len + 1] * MAX_CHARS_PER_BOX
+                valid = False
+                for i in range(len(ustr)):
+                    if ustr[i] == u' ':
+                        continue
+                    valid = True
+                    label[i] = vocab[ustr[i]] if ustr[i] in vocab else 0
+                if not valid:
+                    continue
+                imageBytes = pil_img.tobytes()
+                example = tf.train.Example(features=tf.train.Features(
+                    feature={
+                        'label': _int64_features(label),
+                        'image': _bytes_feature(imageBytes),
+                        'nlabel': _int64_feature(len(ustr))
+                    }
+                ))
+                rand_x = np.random.random()
+                writer = writerTrain
+                if rand_x < 0.8:
+                    writer = writerTrain
+                    train_cnt += 1
+                elif rand_x < 0.81:
+                    writer = writerVal
+                    val_cnt += 1
+                else:
+                    writer = writerTest
+                    test_cnt += 1
+                total_cnt += 1
+                writer.write(example.SerializeToString())
+                if total_cnt % 2000 == 0:
+                    if pid is None:
+                        print('====> create images: {}\t'
+                              'train images: {}\t'
+                              'validatinon images: {}\t'
+                              'test images: {}\t'.format(total_cnt, train_cnt, val_cnt, test_cnt))
+                    else:
+                        print('====> thread [{}] \t'
+                              'create images: {}\t'
+                              'train images: {}\t'
+                              'validatinon images: {}\t'
+                              'test images: {}\t'.format(pid, total_cnt, train_cnt, val_cnt, test_cnt))
+    writerTrain.close()
+    writerVal.close()
+    writerTest.close()
+    time_end = time.time()
+    if pid is None:
+        log = '====> Time elapsed: {:.5f}s'.format((time_end - time_begin))
+    else:
+        log = '====> thread [{}] \tTime elapsed: {:.5f}s'.format(pid, (time_end - time_begin))
+    print(log)
+
+def test_gen_dataset_with_resume():
+    fontsDir = '../dataset/font-small'
+    vocab_txt = './out_ocr_fullfonts_gen/unicode_chars.txt'
+    input_prefix = './out_resume_vocab/part-m'
+    gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, end=1)
+
+def multi_thrd_gen_dataset_with_resume():
+    import time
+    import threading
+    import multiprocessing
+    fontsDir = FONT_DIR
+    vocab_txt = './out_ocr_fullfonts_gen/unicode_chars.txt'
+    input_prefix = './out_resume_vocab/part-m'
+    outdir = './tfdata'
+    processes = []
+    for i in range(12):
+        start_i = i * 8
+        end_i = (i+1)*8
+        proc =  multiprocessing.Process(target=gen_dataset_with_resume, args=(fontsDir, vocab_txt, input_prefix, outdir, start_i, end_i, True, i))
+        processes.append(proc)
+    for i in processes:
+        i.start()
+    for i in processes:
+        i.join()
+
+
+def test_right_image():
+    ustr = u'负责后台系统迭代开发'
+    fontspath = FONT_DIR
+    vocab_fonts = {}
+    loadFonts(fontspath, 50, vocab_fonts)
+    for name, font in vocab_fonts.iteritems():
+        print('====> {}'.format(name))
+        w,h = font.getsize(ustr)
+        image = Image.new('RGB', [w,h], 'white')
+        drawObj = ImageDraw.Draw(image)
+        drawObj.text([0,0], ustr, font=font, fill=(0,0,0,0))
+        import cv2
+        cv_img = np.array(image, dtype=np.uint8)
+        cv2.imshow('img', cv_img)
+        cv2.waitKey(3000)
+
 
 def main():
     fire.Fire()
@@ -508,6 +766,10 @@ if __name__ == '__main__':
     # test_gen_image()
     # test_gen_dataset_without_eng()
     # multi_thrd_gen_dataset()
-    export_vocab()
+    # export_vocab()
     # test_import_vocab()
     # check_gb2312_ustr_spec()
+    # test_read_resume_vocab()
+    # test_gen_dataset_with_resume()
+    multi_thrd_gen_dataset_with_resume()
+    # test_right_image()

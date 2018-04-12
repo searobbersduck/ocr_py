@@ -27,3 +27,15 @@ tfdata
 
 models
 
+resume
+resume1
+resume2
+
+try/out_ocr_detect
+try/out_resume_vocab
+try/out_resume_vocab-bk
+try/tfdata-bk-all
+try/useFont
+try/useFont-bk1
+try/log_dat
+try/log_data.txt
