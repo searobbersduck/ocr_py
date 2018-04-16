@@ -13,6 +13,10 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
+from check_font_try import loadFonts
+
+from PIL import Image, ImageDraw, ImageFont
+
 outdir = './out_ocr_detect'
 
 def test_pypdf2():
@@ -89,6 +93,9 @@ class ocr_detector:
         area = w*h
         if area < 200:
             return False, rect
+        # 对于分辨率300px， 5号字的大小44*44， 那这里将height < 22 and ratio > 3的删除
+        if (h < 22) and (ratio > 3):
+            return False, rect
         return True, rect
 
 def gen_detect_jpg():
@@ -142,20 +149,20 @@ def gen_detect_patches(resume_dir):
     _makedirs(outdir)
     inp_dir = resume_dir
     resume_pdfs = glob(os.path.join(resume_dir, '*.pdf'))
-    for pdf in resume_pdfs:
-        name = os.path.basename(pdf).split('.')[0]
-        out_dir_byname = os.path.join(out_dir, name)
-        _makedirs(out_dir_byname)
-        src_pdf = PyPDF2.PdfFileReader(pdf)
-        numPages = src_pdf.getNumPages()
-        for i in range(numPages):
-            out_dir_byname_sub = os.path.join(out_dir_byname, '{}'.format(i))
-            _makedirs(out_dir_byname_sub)
-            filename = '{}[{}]'.format(pdf, i)
-            with WImage(filename=filename, resolution=300) as img:
-                filename = os.path.join(out_dir_byname_sub, '{}[{}].jpg'.format(name, i))
-                img.save(filename=filename)
-                print('====> pdf to image: \t{}'.format(filename))
+    # for pdf in resume_pdfs:
+    #     name = os.path.basename(pdf).split('.')[0]
+    #     out_dir_byname = os.path.join(out_dir, name)
+    #     _makedirs(out_dir_byname)
+    #     src_pdf = PyPDF2.PdfFileReader(pdf)
+    #     numPages = src_pdf.getNumPages()
+    #     for i in range(numPages):
+    #         out_dir_byname_sub = os.path.join(out_dir_byname, '{}'.format(i))
+    #         _makedirs(out_dir_byname_sub)
+    #         filename = '{}[{}]'.format(pdf, i)
+    #         with WImage(filename=filename, resolution=300) as img:
+    #             filename = os.path.join(out_dir_byname_sub, '{}[{}].jpg'.format(name, i))
+    #             img.save(filename=filename)
+    #             print('====> pdf to image: \t{}'.format(filename))
     '''
     遍历
     '''
@@ -165,6 +172,8 @@ def gen_detect_patches(resume_dir):
         if not os.path.isdir(out_dir_byname):
             continue
         out_dirs_byname_sub = os.listdir(out_dir_byname)
+        list_names = []
+        list_names_file = ''
         for out_dir_byname_sub in out_dirs_byname_sub:
             out_dir_byname_sub = os.path.join(out_dir_byname, out_dir_byname_sub)
             if not os.path.isdir(out_dir_byname_sub):
@@ -173,6 +182,7 @@ def gen_detect_patches(resume_dir):
             imagename = imagename[0]
             patches_dir = os.path.join(out_dir_byname_sub, 'patches')
             _makedirs(patches_dir)
+            list_names_file = os.path.join(patches_dir, 'flags.txt')
             basename = os.path.basename(imagename).split('.')[0]
             det = ocr_detector()
             img = cv2.imread(imagename)
@@ -194,14 +204,21 @@ def gen_detect_patches(resume_dir):
                 img_tmp = gray[y:y_high, x:x_high]
                 patch_img_name = os.path.join(patches_dir, '{}-{}.jpg'.format(basename, cnt))
                 cv2.imwrite(patch_img_name, img_tmp)
+                list_names.append(os.path.basename(patch_img_name))
                 new_img[y:y + h, x:x + w] = gray[y:y + h, x:x + w]
             gray_img_name = os.path.join(patches_dir, '{}-gray.jpg'.format(basename))
             cv2.imwrite(gray_img_name, new_img)
+            with open(list_names_file, 'w') as f:
+                for name in list_names:
+                    f.write(name)
+                    f.write('\t')
+                    f.write('\n')
+            print('====> Save flag file: {}'.format(list_names_file))
 
 
 def test_gen_detect_patches():
-    dir = '/Users/higgs/beast/doc/图片简历/无法解析/其他'
-    # dir = '/Users/higgs/beast/doc/图片简历/guidang'
+    # dir = '/Users/higgs/beast/doc/图片简历/无法解析/其他'
+    dir = '/Users/higgs/beast/doc/图片简历/guidang'
     gen_detect_patches(dir)
 
 def resize_and_save_img(img_path, out_dir):
@@ -318,8 +335,10 @@ def test_gen_tfrecord_test():
             except:
                 print('====> exception as step {}'.format(i))
 
-
-def show_gen():
+'''
+显示从简历中detect到的有字的patches
+'''
+def show_detected_patches():
     dir = '/Users/higgs/beast/code/work/ocr_py/try/out_ocr_detect'
     from glob import glob
     from PIL import Image
@@ -330,14 +349,117 @@ def show_gen():
         cv2.imshow('img', cv_image)
         cv2.waitKey(1000)
 
+
+'''
+数据增强
+'''
+class dataAugmentation(object):
+    def __init__(self,noise=True,dilate=True,erode=True):
+        self.noise = noise
+        self.dilate = dilate
+        self.erode = erode
+
+    @classmethod
+    def add_noise(cls,img):
+        for i in range(20): #添加点噪声
+            temp_x = np.random.randint(0,img.shape[0])
+            temp_y = np.random.randint(0,img.shape[1])
+            img[temp_x][temp_y] = 0
+        return img
+
+    @classmethod
+    def add_erode(cls,img):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 2))
+        img = cv2.erode(img,kernel)
+        return img
+
+    @classmethod
+    def add_dilate(cls,img):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(2, 2))
+        img = cv2.dilate(img,kernel)
+        return img
+
+    def do(self,pil_img, dilate_flag=True):
+        cv_img = np.array(pil_img, dtype=np.uint8)
+        rand_x = np.random.random()
+        if rand_x < 0.3:
+            cv_img = self.add_noise(cv_img)
+        rand_x = np.random.random()
+        if rand_x < 0.0:
+            cv_img = self.add_dilate(cv_img)
+        rand_x = np.random.random()
+        if rand_x < 0.5:
+            cv_img = self.add_erode(cv_img)
+        return Image.fromarray(cv_img)
+
+'''
+显示从简历中detect到的有字的patches，以及相应的利用字体库生成的文字
+'''
+def show_detected_patches_with_selfgen():
+    from PIL import Image, ImageDraw, ImageFont
+    import cv2
+    dir = '/Users/higgs/beast/code/work/ocr_py/resume'
+    flag_file = os.path.join(dir, 'flag.txt')
+    vocab = {}
+    with open(flag_file, 'r') as f:
+        for line in f.readlines():
+            line = line.strip()
+            ss = line.split('\t')
+            if not (len(ss) == 2):
+                continue
+            vocab[int(ss[0])] = ss[1].decode('utf8')
+    font_size = 45
+    vocab_fonts = {}
+    fontdir = './useFont-small'
+    loadFonts(fontdir, font_size, vocab_fonts)
+    font_name = ''
+    font = ''
+    for key, value in vocab_fonts.iteritems():
+        font_name = key
+        font = value
+    aug = dataAugmentation()
+    for key,value in vocab.iteritems():
+        ustr = value
+        raw_file = os.path.join(dir, '{}.jpg'.format(key))
+        if not os.path.isfile(raw_file):
+            continue
+        img_raw = Image.open(raw_file)
+        raw_w, raw_h = img_raw.size
+        gen_w, gen_h = font.getsize(ustr)
+        img_gen = Image.new('RGB', [gen_w, gen_h], 'white')
+        drawObj = ImageDraw.Draw(img_gen)
+        drawObj.text([0,0], ustr, font=font, fill=(0,0,0,0))
+        resize_h = raw_h-2
+        resize_w = int(resize_h/gen_h*gen_w)
+        # (np.random.random() < 1.9) and (p < 2550)
+        img_gen = img_gen.point(
+            lambda p: p+np.random.randint(50,150) if (np.random.random() < 0.8) and (p < 255) else p
+        )
+        img_gen = aug.do(img_gen)
+        img_gen = img_gen.resize([resize_w, resize_h], Image.LINEAR).point(
+            lambda p: p>200 and 255
+        )
+        np_img_raw = np.array(img_raw, dtype=np.uint8)
+        np_img_gen = np.array(img_gen, dtype=np.uint8)
+        np_img_gen = np_img_gen[:,:,0]
+        # cv2.imshow('gen', np_img_gen)
+        # cv2.waitKey(2000)
+        img_stitch = np.ones([raw_h*2, raw_w], dtype=np.uint8)*255
+        img_stitch[0:raw_h, :] = np_img_raw
+        img_stitch[raw_h:raw_h+resize_h, 2:img_gen.size[0]+2] = np_img_gen
+        cv2.imshow('stitch_image', img_stitch/255)
+        cv2.waitKey(2000)
+
+
 if __name__ == '__main__':
     # test_pypdf2()
     # test_wand()
     # test_pdf2image()
     # test_ocr_detector()
     # gen_detect_jpg()
-    # test_gen_detect_patches()
+    test_gen_detect_patches()
     # test_resize_and_save_img()
     # gen_tfrecord_test()
     # test_gen_tfrecord_test()
-    show_gen()
+    # show_detected_patches()
+    # show_detected_patches_with_selfgen()

@@ -39,3 +39,8 @@ try/useFont
 try/useFont-bk1
 try/log_dat
 try/log_data.txt
+try/out_resume_patches
+try/tfdata*
+try/useFont*
+
+resume-flag

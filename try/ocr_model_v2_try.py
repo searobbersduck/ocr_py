@@ -12,11 +12,24 @@ import time
 
 from ocr_fullfonts_gen_try import import_vocab
 
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='OCR Model params')
+    parser.add_argument('--time_steps', default=480, type=int)
+    parser.add_argument('--iter_num', default=30000, type=int)
+    parser.add_argument('--batch_size', default=128, type=int)
+    return parser.parse_args()
+
+args = parse_args()
+
 # REAL_LABEL_NUM = 6516
 # REAL_LABEL_NUM = 6826
 REAL_LABEL_NUM = 7110
 
-TIME_STEPS = 120
+TIME_STEPS = args.time_steps
+ITER_NUM = args.iter_num
+BATCH_SIZE = args.batch_size
 
 def parse_tfrecord_function(example_proto):
     features = {
@@ -27,11 +40,11 @@ def parse_tfrecord_function(example_proto):
     parsed_feats = tf.parse_single_example(example_proto, features)
     image = parsed_feats['image']
     image = tf.decode_raw(image, tf.uint8)
-    image = tf.reshape(image, [21, 4*TIME_STEPS, 3])
+    image = tf.reshape(image, [21, 480, 3])
     image = tf.squeeze(tf.image.rgb_to_grayscale(image), axis=2)
     datas = tf.split(image, TIME_STEPS, axis=1, num=TIME_STEPS)
     datas = tf.stack(datas, axis=0)
-    datas = tf.reshape(datas, [TIME_STEPS, 84])
+    datas = tf.reshape(datas, [TIME_STEPS, int(21*480/TIME_STEPS)])
     label = parsed_feats['label']
     nlabel = parsed_feats['nlabel']
     return tf.cast(datas, tf.int32), label, nlabel
@@ -45,11 +58,11 @@ def parse_tfrecord_function_with_raw(example_proto):
     parsed_feats = tf.parse_single_example(example_proto, features)
     image = parsed_feats['image']
     image = tf.decode_raw(image, tf.uint8)
-    image = tf.reshape(image, [21, 4*TIME_STEPS, 3])
+    image = tf.reshape(image, [21, 480, 3])
     image = tf.squeeze(tf.image.rgb_to_grayscale(image), axis=2)
     datas = tf.split(image, TIME_STEPS, axis=1, num=TIME_STEPS)
     datas = tf.stack(datas, axis=0)
-    datas = tf.reshape(datas, [TIME_STEPS, 84])
+    datas = tf.reshape(datas, [TIME_STEPS, int(21*480/TIME_STEPS)])
     label = parsed_feats['label']
     nlabel = parsed_feats['nlabel']
     return tf.cast(datas, tf.int32), label, nlabel, image
@@ -214,7 +227,7 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
     train_op = model.train(train_loss)
     val_loss, val_acc = model.testloss(inputs_val[0], inputs_val[1])
 
-    X = tf.placeholder(tf.int32, shape=[None, TIME_STEPS, 84], name='inp_x')
+    X = tf.placeholder(tf.int32, shape=[None, TIME_STEPS, int(21*480/TIME_STEPS)], name='inp_x')
     online_reference = model.onlineInference(X)
     online_reference_nomerge = model.onlineInference_NoMerge(X)
 
@@ -228,7 +241,8 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
         os.makedirs(outdir)
     logger = []
     lr_in = lr
-    min_lr = 1e-3
+    min_lr = 5e-4
+    adjust_lr_step = 2000
     with tf.Session() as sess:
         sess.run(init)
         tf.train.write_graph(sess.graph_def, outdir, 'graph.pb', as_text=True)
@@ -245,7 +259,8 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
                 if o_train_loss < loss_rec:
                     loss_rec = o_train_loss
                     lr_acc_cnt = 0
-                if lr_acc_cnt > 2000:
+                if lr_acc_cnt > adjust_lr_step:
+                    adjust_lr_step = int(adjust_lr_step*2.5)
                     lr_acc_cnt = 0
                     lr_in = (lr_in)/10 if (lr_in)/10 > min_lr else min_lr
                     log = '====> adjust learning rate to {:.6f}'.format(lr_in)
@@ -278,7 +293,9 @@ def train(train_tfrecord, val_tfrecord, model, epochs, buffer_size, batch_size, 
                         logger.append(log)
                         print(log)
                         continue
-            except:
+            except Exception as e:
+                print(e)
+                logger.append(e)
                 saver.save(sess, os.path.join(outdir, 'ocr'), global_step=i)
                 with open('./models/logs.txt', 'w') as f:
                     for log in logger:
@@ -308,7 +325,7 @@ def train_by_epochs(train_tfrecord, val_tfrecord, model, epochs, buffer_size, ba
     train_op = model.train(train_loss)
     val_loss, val_acc = model.testloss(inputs_val[0], inputs_val[1])
 
-    X = tf.placeholder(tf.int32, shape=[None, TIME_STEPS, 84], name='inp_x')
+    X = tf.placeholder(tf.int32, shape=[None, TIME_STEPS, int(21*480/TIME_STEPS)], name='inp_x')
     online_reference = model.onlineInference(X)
 
     init = tf.global_variables_initializer()
@@ -534,7 +551,7 @@ def resume_test():
     # loadVocab('./out_ocr_fullfonts_gen/unicode_chars1.txt', vocab1)
     import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-12000.meta'))
+        saver = tf.train.import_meta_graph(os.path.join(models_dir, 'ocr-39000.meta'))
         saver.restore(sess, tf.train.latest_checkpoint(models_dir))
         graph = tf.get_default_graph()
         # op_onlinereference = graph.get_operation_by_name('onlineInferenceModel')
@@ -575,6 +592,7 @@ def resume_test():
             except IOError as e:
                 print(e)
             except Exception as e:
+                print(e)
                 break
             time_end = time.time()
             print('====> process [{:04d}]\t\t time:{:.4f}'.format(cnt_i, (time_end-time_begin)))
@@ -598,18 +616,20 @@ def test_train():
           )
 
 def test_train_noepochs():
-    trainset = ['./tfdata/train.tfrecord-{}'.format(i) for i in range(12)]
-    valset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(1)]
+    trainset = ['./tfdata/train.tfrecord-{}'.format(i) for i in range(1)]
+    valset = ['./tfdata/val.tfrecord-{}'.format(i) for i in range(1)]
     # trainset = './tfdata/train.tfrecord-0'
     # valset = './tfdata/val.tfrecord-0'
     model = OCRModel(numChars=REAL_LABEL_NUM, lstmHidden=120)
     train(trainset,
-          valset,model, 100, 2048, 384, 0.01, 1000000)
+          valset,model, 100, 2048, BATCH_SIZE, 0.01, ITER_NUM)
 
 def test_dataset_valid():
-    batch_size = 10
+    vocab = {}
+    import_vocab('./out_ocr_fullfonts_gen/unicode_chars.txt', vocab)
+    batch_size = 1
     trainset = ['./tfdata/train.tfrecord-{}'.format(i) for i in range(11)]
-    valset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(11)]
+    valset = ['./tfdata/test.tfrecord-{}'.format(i) for i in range(1)]
     ds_val = tf.contrib.data.TFRecordDataset(valset, 'GZIP')
     ds_val = ds_val.map(parse_tfrecord_function_with_raw)
     ds_val = ds_val.batch(batch_size)
@@ -621,6 +641,12 @@ def test_dataset_valid():
             inputs = sess.run(inputs_val)
             image = inputs[3][0]
             label = inputs[1][0]
+            str = ''
+            for i in range(len(label)):
+                if label[i] >= REAL_LABEL_NUM:
+                    continue
+                str += vocab[label[i]]
+            print(str)
             import numpy as np
             from PIL import Image
             import cv2
@@ -628,10 +654,15 @@ def test_dataset_valid():
             cv2.imshow('img', cv_img)
             cv2.waitKey(1000)
 
+def test_args():
+    print('====> opts:')
+    print(args)
+
 if __name__ == '__main__':
     # test_train()
     # retrain()
     # retest()
-    # test_train_noepochs()
+    test_train_noepochs()
     # resume_test()
-    test_dataset_valid()
+    # test_dataset_valid()
+    # test_args()

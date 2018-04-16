@@ -346,10 +346,10 @@ class dataAugmentation(object):
     def do(self,pil_img):
         cv_img = np.array(pil_img, dtype=np.uint8)
         rand_x = np.random.random()
-        if rand_x < 0.5:
+        if rand_x < 0.3:
             cv_img = self.add_noise(cv_img)
         rand_x = np.random.random()
-        if rand_x < 0.5:
+        if rand_x < 0.0:
             cv_img = self.add_dilate(cv_img)
         rand_x = np.random.random()
         if rand_x < 0.5:
@@ -370,6 +370,10 @@ def gen_image(font, size, ustr, image_w, image_h):
     drawObj = ImageDraw.Draw(fontImg)
     drawObj.text([0,0], ustr, font=font, fill=(0,0,0,0))
 
+    # 改变字体不同部位颜色的深浅
+    fontImg = fontImg.point(
+        lambda p: p + np.random.randint(50, 150) if (np.random.random() < 0.8) and (p < 255) else p
+    )
     if size > 40:
         aug = dataAugmentation()
         fontImg = aug.do(fontImg)
@@ -388,7 +392,11 @@ def gen_image(font, size, ustr, image_w, image_h):
     )
     x_offset = np.random.randint(-4, 10)
     y_offset = np.random.randint(-1, 4)
-    image.paste(img, (x_offset, int(y_offset+offset)))
+    #前面随机插入空格
+    x_rand_blank = 0
+    if np.random.random() < 0.1:
+        x_rand_blank = np.random.randint(1, 4)
+    image.paste(img, (x_rand_blank*image_h+x_offset, int(y_offset+offset)))
 
     return image
 
@@ -627,7 +635,7 @@ def gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, outdir='./tfdata'
     total_cnt = 0
     for i in range(start, end):
         line_cnt = 0
-        input_file = '{}-{:05d}-all'.format(input_prefix, i)
+        input_file = '{}-{:05d}-patches'.format(input_prefix, i)
         if not os.path.isfile(input_file):
             continue
         with open(input_file, 'r') as f:
@@ -638,7 +646,7 @@ def gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, outdir='./tfdata'
                 line = line.strip()
                 ustr = line.decode('utf8')
                 ustr = ustr[:min(len(ustr), WORDS_NUM_MAX)]
-                if len(ustr) < 2:
+                if len(ustr) < 1:
                     continue
                 sizeidx = np.random.randint(0, len(sizes))
                 size = sizes[sizeidx]
@@ -715,7 +723,7 @@ def test_gen_dataset_with_resume():
     fontsDir = '../dataset/font-small'
     vocab_txt = './out_ocr_fullfonts_gen/unicode_chars.txt'
     input_prefix = './out_resume_vocab/part-m'
-    gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, end=1)
+    gen_dataset_with_resume(fontsDir, vocab_txt, input_prefix, start=94, end=95)
 
 def multi_thrd_gen_dataset_with_resume():
     import time

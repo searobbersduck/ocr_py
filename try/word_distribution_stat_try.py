@@ -360,10 +360,58 @@ def stat_miss():
     print(ustr)
     print('hello')
 
+def split_long_line_to_short_lines(input_file, output_file, max_len):
+    import numpy as np
+    if not os.path.isfile(input_file):
+        return
+    out_list = []
+    line_cnt = 0
+    with open(input_file, 'r') as f:
+        for line in f.readlines():
+            line_cnt += 1
+            if line_cnt%2000 == 0:
+                print('====> line: {}\t\tfile: {}'.format(line_cnt, os.path.basename(input_file)))
+            line = line.strip()
+            line = line.decode('utf8')
+            if not (len(line) > max_len):
+                out_list.append(line)
+                continue
+            else:
+                delta_len = len(line)-max_len
+                len_line = len(line)
+                start_pos = 0
+                while(start_pos < delta_len-2):
+                    # step = np.random.randint(1, max_len//3)
+                    step = np.random.randint(max_len//3, max_len)
+                    window_len = np.random.randint(max(2, max_len - 5), max_len + 1)
+                    sub_line = line[start_pos:min(start_pos+window_len, len_line)]
+                    out_list.append(sub_line)
+                    start_pos += step
+    print(len(out_list))
+    with open(output_file, 'w') as f:
+        for line in out_list:
+            f.write(line.encode('utf8'))
+            f.write('\n')
+    print('====> Save to {}'.format(output_file))
+
+WORDS_NUM_MAX = 20
+
+def test_split_long_line_to_short_lines():
+    input_prefix = '/Users/higgs/beast/code/work/ocr_py/try/out_resume_vocab/part-m'
+    start_i = 0
+    end_i = 100
+    for i in range(start_i, end_i):
+        input_file = '{}-{:05d}-all'.format(input_prefix, i)
+        output_file = '{}-{:05d}-patches-less'.format(input_prefix, i)
+        max_len = WORDS_NUM_MAX
+        split_long_line_to_short_lines(input_file, output_file, max_len)
+
+
 if __name__ == '__main__':
     # test_stat()
-    test_stat_gb2312()
-    test_switch_abnormal_data_to_normal()
-    test_merge_gb_and_normal()
-    test_stat_all()
-    stat_miss()
+    # test_stat_gb2312()
+    # test_switch_abnormal_data_to_normal()
+    # test_merge_gb_and_normal()
+    # test_stat_all()
+    # stat_miss()
+    test_split_long_line_to_short_lines()
